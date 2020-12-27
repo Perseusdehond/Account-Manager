@@ -1,0 +1,47 @@
+---
+name: jfa-go
+kind: pipeline
+type: docker
+
+steps:
+    - name: fetch
+      image: docker:git
+      commands:
+          - git fetch --tags
+    - name: release
+      image: golang:latest
+      environment:
+          GITHUB_TOKEN:
+              from_secret: github_token
+      commands:
+        - apt update -y
+        - apt install build-essential python3-pip curl software-properties-common sed upx -y
+        - (curl -sL https://deb.nodesource.com/setup_14.x | bash -)
+        - apt install nodejs
+        - curl -sL https://git.io/goreleaser | bash
+      when:
+          event: tag
+
+---
+name: jfa-go-git
+kind: pipeline
+type: docker
+
+steps:
+    - name: build
+      image: golang:latest
+      commands:
+        - apt update -y
+        - apt install build-essential python3-pip curl software-properties-common sed upx -y
+        - (curl -sL https://deb.nodesource.com/setup_14.x | bash -)
+        - apt install nodejs
+        - curl -sL https://git.io/goreleaser > goreleaser.sh
+        - chmod +x goreleaser.sh
+        - ./goreleaser.sh --snapshot --skip-publish --rm-dist
+        - wget https://builds.hrfee.pw/upload.py
+        - pip3 install requests
+        - bash -c 'python3 upload.py https://builds.hrfee.pw hrfee jfa-go ./dist/*.tar.gz'
+      environment:
+          BUILDRONE_KEY:
+              from_secret: BUILDRONE_KEY
+

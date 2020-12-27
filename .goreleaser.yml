@@ -1,0 +1,52 @@
+project_name: jfa-go
+release:
+    github:
+        owner: hrfee
+        name: jfa-go
+    name_template: "v{{.Version}}"
+before:
+  hooks:
+    - go mod download
+    - python3 config/fixconfig.py -i config/config-base.json -o data/config-base.json
+    - python3 config/generate_ini.py -i config/config-base.json -o data/config-default.ini
+    - python3 -m pip install libsass
+    - npm install
+    - python3 scss/compile.py
+    - python3 mail/generate.py
+    - python3 version.py {{.Version}} version.go
+    - bash -c 'npx esbuild ts/*.ts ts/modules/*.ts --outdir=data/static --minify'
+    - go get -u github.com/swaggo/swag/cmd/swag
+    - swag init -g main.go
+builds:
+    - dir: ./
+      env:
+        - CGO_ENABLED=0
+      goos:
+        - linux
+        - windows
+        - darwin
+      goarch:
+        - amd64
+        - arm
+        - arm64
+archives:
+  - replacements:
+        darwin: Darwin
+        linux: Linux
+        windows: Windows
+        amd64: x86_64
+    files:
+        - data/*
+        - data/templates/*
+        - data/static/*
+        - data/static/modules/*
+checksum:
+    name_template: 'checksums.txt'
+snapshot:
+    name_template: "git-{{.ShortCommit}}"
+changelog:
+    sort: asc
+    filters:
+        exclude:
+            - '^docs:'
+            - '^test:'
